@@ -63,6 +63,16 @@ RUN sed -i '1i load_module /etc/nginx/modules/ngx_http_brotli_filter_module.so;\
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# ── Runtime environment config ───────────────────────────────────────────────
+# The bundle carries no environment values (see src/config/runtime-env.ts), so
+# env-config.js is written at CONTAINER START from App Platform environment
+# variables. It is deliberately not committed to the deploy repo: that repo is
+# public. jq is what gives the entrypoint correct JSON escaping.
+RUN apk add --no-cache jq
+COPY env-config.keys.json /etc/docbits/env-config.keys.json
+COPY 40-env-config.sh /docker-entrypoint.d/40-env-config.sh
+RUN chmod +x /docker-entrypoint.d/40-env-config.sh
 # Fail the BUILD (not the deploy) if the modules don't load against this runtime
 # (ABI mismatch) or the load_module insertion / config is malformed.
 RUN nginx -t
@@ -71,5 +81,7 @@ COPY . /usr/share/nginx/html
 # served as part of the site.
 RUN rm -f /usr/share/nginx/html/Dockerfile \
           /usr/share/nginx/html/nginx.conf \
-          /usr/share/nginx/html/.dockerignore
+          /usr/share/nginx/html/.dockerignore \
+          /usr/share/nginx/html/env-config.keys.json \
+          /usr/share/nginx/html/40-env-config.sh
 EXPOSE 8080
